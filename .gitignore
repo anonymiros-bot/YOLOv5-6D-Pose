@@ -18,6 +18,9 @@
 *.avi
 *.data
 *.json
+data/*
+runs/*
+runs (copy)/*
 
 *.cfg
 !cfg/yolov3*.cfg

@@ -1,110 +1,152 @@
-<div align="center">  
+# YOLOv5-6D for UAV Pose Estimation
 
-# YOLOv5-6D Pose: Advancing 6-DoF Instrument Pose Estimation in Variable X-Ray Imaging Geometries
-6-DoF Pose estimation based on the [YOLO framework](https://github.com/ultralytics/yolov5) and tailored to our application of instrument pose estimation in X-Ray images.  
-</div>
+Fork of [YOLOv5-6D-Pose](https://github.com/cviviers/YOLOv5-6D-Pose) adapted for vision-based UAV pose estimation.
 
-<h3 align="center">
-  <a href="https://ieeexplore.ieee.org/document/10478293">Paper</a> |
-  <a href="https://arxiv.org/abs/2405.11677v1">arXiv</a> |
-</h3>
+Accompanies the paper *"Towards Agile Vision-Based Multi-UAV Flight: Revisiting State Estimation"* (submitted to IROS 2026).
 
-<p float="left">
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/iron.gif" width=45% height=50%>
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/cat.gif" width=45% height=50%>
+## Pipeline
 
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/screw_train.gif" width=90%>
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/cube.gif" width=45% height=50%>
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/phantom.gif" width=45% height=50%>
-</p>
+```
+image → YOLOv5-6D → 9 keypoints (pixels) → PnP → T_cam_uav → world pose
+```
 
-<h3 align="center">
-Multi-object Pose Estimation
-</h3>
-<p float="left">
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/multi.png" width=90%>
-</p>
+1. **YOLOv5-6D** detects 9 keypoints (centroid + 8 bounding box corners) in image coordinates
+2. **PnP** (`solvePnP` + Levenberg-Marquardt refinement) solves for camera-to-UAV transform using known 3D model
+3. **World transform** converts to world frame using camera pose (ground truth or estimated)
 
-<!--[teaser](results/images/architecture.png)-->
+Output per frame: `pnp_pos` (3D position) and `pnp_q` (orientation quaternion, xyzw).
 
-<div align="center">  
+These outputs feed into the state estimation benchmark — the estimators fuse noisy `pnp_pos` and `pnp_q` measurements to produce filtered state estimates.
 
-## Results
-[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/yolov5-6d-advancing-6-dof-instrument-pose/6d-pose-estimation-on-linemod)](https://paperswithcode.com/sota/6d-pose-estimation-on-linemod?p=yolov5-6d-advancing-6-dof-instrument-pose)
-<p >
-<img src="https://github.com/cviviers/YOLOv5-6D-Pose/blob/main/results/images/acc_vs_speed.png" width=60% height=60%> 
-</p>
+## Added Scripts
 
-Currently the fastest single-shot object 6-DoF pose estimation method at this level of accuracy.
-</div>
+| Script | Dataset | Sequences |
+|--------|---------|-----------|
+| `pnp_eval_all_unreal_flying.py` | Unreal (simulated) | 140 flying trajectories |
+| `pnp_eval_all_unreal_step.py` | Unreal (simulated) | 35 step response |
+| `pnp_eval_all_real.py` | Phantom 4 / Mavic 2 | Real-world with MoCap GT |
 
-## Quick Start
-<details>
-<summary>Setup</summary>
+Each script:
+- Loads trained YOLOv5-6D weights
+- Runs detection + PnP on all frames in all sequences
+- Transforms results to world frame
+- Saves JSON with original fields + `pnp_pos`, `pnp_q` filled in
 
-Clone repo and install [requirements.txt](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/requirements.txt) in a
-[**Python>=3.9.0**](https://www.python.org/) environment, including
-[**PyTorch==1.9**](https://pytorch.org/get-started/locally/).
+### Usage
 
 ```bash
-git clone https://github.com/cviviers/YOLOv5-6D-Pose.git  # clone
-cd YOLOv5-6D-Pose
-pip install -r requirements.txt  # install
+# 1. Edit paths at top of script:
+#    WEIGHTS   — path to trained .pt file
+#    SEQ_ROOT  — dataset root directory
+#    OUT_DIR   — where to save results
 
-cd utils
-python3 ./setup.py build_ext --inplace # To compute ADD-S metric
-
-```
-Alternatively, build the [dockerfile](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/docker) included or pull our image [sudochris/yolo6dpose:v2](https://hub.docker.com/repository/docker/sudochris/yolo6dpose/general).
-
-Download the [weights](https://drive.google.com/drive/folders/11BW41xO3R1UBnc2Dx1xA3CPbYPGTrfHQ?usp=drive_link) and [data](https://drive.google.com/drive/folders/13pkdF4KpqXWXbEIkiAcHoO-YUr_CWN-L?usp=drive_link)
-
-</details>
-<details>
-<summary>Inference</summary>
-
-```bash
-python detect.py --weights path/to/weights/linemod/cat/best.pt --img 640 --conf 0.25 --source ../data/LINEMOD/cat/JPEGImages --static-camera configs/linemod/linemod_camera.json --mesh-data path/to/data/LINEMOD/cat/cat.ply
+# 2. Run:
+python pnp_eval_all_unreal_flying.py
 ```
 
-</details>
+Output: `pnp_results.json` — one entry per sequence with per-frame pose estimates.
 
-<details>
-<summary>Training</summary>
+## Notebooks
 
-```bash
-python train.py --batch 32 --epochs 5000 --cfg yolov5xv6_pose_bifpn.yaml --hyp configs/hyp.single.yaml --weights yolov5x.pt --data configs/linemod/benchvise.yaml --rect --cache --optimizer Adam 
-```
+Interactive versions for single-sequence testing and visualization:
 
-</details>
+| Notebook | Purpose |
+|----------|---------|
+| `pose_estimation_seq_unreal_flying.ipynb` | Test on random Unreal flying sequence |
+| `pose_estimation_seq_unreal_step.ipynb` | Test on step response sequence |
+| `pose_estimation_seq_phantom4.ipynb` | Test on Phantom 4 real-world |
+| `pose_estimation_seq_mavic2.ipynb` | Test on Mavic 2 real-world |
 
-## Detailed Setup
+Useful for debugging detection failures and visualizing PnP results.
 
-For a detailed description on how to set up YOLOv5-6D, follow our tutorial [tutorial](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/tutorial.ipynb).
-We have also created an easy [guide](https://github.com/cviviers/YOLOv5-6D-Pose/blob/master/data_curation/CreatingDataset.md) on how to create a single object dataset for using with YOLOv5-6D.
+## Directory Structure
 
-
-## TODO List <a name="todos"></a>
-- [x] Release code: code will be released upon paper acceptance.
-- [x] Release weights: will be released upon paper acceptance.
-- [ ] Linemod occlusion results
-- [x] Multi-object Pose (available on [multi](https://github.com/cviviers/YOLOv5-6D-Pose/tree/multi) branch)
-- [ ] Release code & results for YOLOv8-6D pose
-
-## Citation <a name="citation"></a>
-
-Please consider citing our [paper](https://ieeexplore.ieee.org/document/10478293) if the project helps your research with the following BibTex:
+### Unreal (simulated)
 
 ```
-@ARTICLE{10478293,
-  author={Viviers, Christiaan G.A. and Filatova, Lena and Termeer, Maurice and De With, Peter H.N. and Sommen, Fons van der},
-  journal={IEEE Transactions on Image Processing}, 
-  title={Advancing 6-DoF Instrument Pose Estimation in Variable X-Ray Imaging Geometries}, 
-  year={2024},
-  keywords={X-ray instrument detection;6-DoF pose estimation;surgical vision;imaging geometry;deep learning},
-  doi={10.1109/TIP.2024.3378469}}
+data/sequences/flying/
+├── flying/{k}/sequence.json          # GT: pos, quat, cam_pos, cam_q, ...
+└── trajectory_{k}_{suffix}/drone/images/*.jpg
 ```
 
-## License <a name="license"></a>
+Camera: simulated pinhole, `fx=fy=960`, `cx=960`, `cy=540`, no distortion.
 
-All assets and code are under the [AGPL-3.0 License](./LICENSE) - in line with YOLOv5 - unless specified otherwise.
+### Phantom 4 / Mavic 2 (real-world)
+
+```
+data/
+├── JPEGImages/{session}/{sequence}/*.jpg
+├── labels/{session}/{sequence}/*.txt        # MoCap GT (cam + UAV poses)
+└── labels_yolo6d/{session}/{sequence}/*.txt # YOLO keypoint labels
+```
+
+Camera intrinsics and distortion coefficients defined in script headers.
+
+## 3D Model
+
+Keypoints are 8 corners of the UAV bounding box + centroid:
+
+```
+CORNERS_BODY = [
+    centroid,
+    (min_x, min_y, min_z), (min_x, min_y, max_z),
+    (min_x, max_y, min_z), (min_x, max_y, max_z),
+    (max_x, min_y, min_z), (max_x, min_y, max_z),
+    (max_x, max_y, min_z), (max_x, max_y, max_z),
+]
+```
+
+Dimensions extracted from mesh files (`.ply`). PnP uses the 8 corners; centroid is predicted but not used in pose solving.
+
+## Output Format
+
+Each sequence in the output JSON:
+
+```json
+{
+  "0": {
+    "t": [...],           // timestamps
+    "pos": [...],         // GT position (N×3)
+    "quat": [...],        // GT quaternion xyzw (N×4)
+    "pnp_pos": [...],     // estimated position (N×3), NaN if detection failed
+    "pnp_q": [...],       // estimated quaternion (N×4), NaN if detection failed
+    "image_dir": "...",   // path to images
+    ...
+  }
+}
+```
+
+NaN values indicate frames where detection or PnP failed.
+
+## Weights
+
+Trained weights: [Google Drive](https://drive.google.com/drive/folders/1nZsnAD0rCxkVpD7aDKQ9ucQ5p88Euxij?usp=drive_link)
+
+```
+runs/train/
+├── unreal/weights/best.pt    # Simulated quadrotor
+├── phantom4/weights/best.pt  # DJI Phantom 4
+└── mavic2/weights/best.pt    # DJI Mavic 2
+```
+
+Trained on synthetic (Unreal Engine) and real images with YOLO keypoint labels.
+
+## Setup & Training
+
+See the [original YOLOv5-6D-Pose README](https://github.com/cviviers/YOLOv5-6D-Pose) for:
+- Installation & dependencies
+- Training on custom datasets
+- Inference options
+
+Training configs for UAV datasets: `configs/shiu/` (Phantom 4, Mavic 2).
+
+## Citation
+
+```bibtex
+@article{TODO,
+  title={Towards Agile Vision-Based Multi-UAV Flight: Revisiting State Estimation},
+  author={...},
+  journal={submitted to IROS 2026},
+  year={2026}
+}
+```

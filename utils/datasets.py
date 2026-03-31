@@ -182,6 +182,7 @@ class LoadImages:  # for inference
         else:
             # Read image
             self.count += 1
+            assert isinstance(path, str) and len(path) > 0, f"Empty image path: {path!r}"
             img0 = cv2.imread(path)  # BGR
             assert img0 is not None, 'Image Not Found ' + path
             print(f'image {self.count}/{self.nf} {path}: ', end='')
@@ -453,12 +454,26 @@ def Linemodimg2label_paths(img_paths):
     # Define label paths as a function of image paths
     return [x.replace("JPEGImages", "labels").replace("images", "labels").replace(".jpg", ".txt").replace(".png", ".txt") for x in img_paths]
 
+#def Linemodimg2mask_paths(img_paths):
+#    # Define mask paths as a function of image paths
+#    if os.name == 'nt':
+#        tmp = [x.replace("JPEGImages", "mask").replace("images", "mask").replace('\\00', '\\').replace(".jpg", ".png") for x in img_paths]
+#    else:
+#        tmp =  [x.replace("JPEGImages", "mask").replace("images", "mask").replace('/00', '/').replace(".jpg", ".png") for x in img_paths]
+#    print(f"Generated mask paths: {tmp[:5]}...")  # Debug print
+#
+#    return tmp
+
 def Linemodimg2mask_paths(img_paths):
-    # Define mask paths as a function of image paths
-    if os.name == 'nt':
-        return [x.replace("JPEGImages", "mask").replace("images", "mask").replace('\\00', '\\').replace(".jpg", ".png") for x in img_paths]
-    else:
-        return [x.replace("JPEGImages", "mask").replace("images", "mask").replace('/00', '/').replace(".jpg", ".png") for x in img_paths]
+    tmp = []
+    for x in img_paths:
+        assert isinstance(x, str) and x, f"Invalid image path: {x!r}"
+        if "JPEGImages" not in x:
+            raise ValueError(f"'JPEGImages' not found in path: {x}")
+        tmp.append(x.replace("JPEGImages", "mask", 1))
+    return tmp
+
+
 
 def Linemodimg2mask_path(img_paths):
     # Define mask paths as a function of image paths
@@ -525,7 +540,7 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
         self.mask_files = Linemodimg2mask_paths(self.img_files)  # mask
         if cache_path.is_file():
             
-            cache, exists = torch.load(cache_path), True  # load
+            cache, exists = torch.load(cache_path, weights_only=False), True  # load cache
             if cache['hash'] != get_hash(self.label_files + self.mask_files + self.img_files) or 'version' not in cache:  # changed
                 cache, exists = self.cache_data(cache_path, prefix), False  # re-cache
         else:
@@ -683,7 +698,8 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
         img2 = img
 
         # Augment background
-        if self.augment: 
+        if self.augment:
+            assert isinstance(self.masks[index], str) and len(self.masks[index]) > 0, f"Empty mask path: {self.masks[index]!r}"
             mask = cv2.imread(self.masks[index])
             if hyp['background'] and self.bg_file_names is not None and self.masks[index] != None:
 
@@ -691,6 +707,7 @@ class LoadImagesAndLabelsPose(Dataset):  # for training/testing
                         # Get background image path
                         random_bg_index = random.randint(0, len(self.bg_file_names) - 1)
                         bgpath = self.bg_file_names[random_bg_index]
+                        assert isinstance(bgpath, str) and len(bgpath) > 0, f"Empty background path: {bgpath!r}"
                         bg = cv2.imread(bgpath)
                         img = change_background(img, mask, bg)
 
@@ -812,6 +829,7 @@ def load_image(self, index):
     img = self.imgs[index]
     if img is None:  # not cached
         path = self.img_files[index]
+        assert isinstance(path, str) and len(path) > 0, f"Empty image path: {path!r}"
         img = cv2.imread(path)  # BGR
         assert img is not None, 'Image Not Found ' + path
         h0, w0 = img.shape[:2]  # orig hw

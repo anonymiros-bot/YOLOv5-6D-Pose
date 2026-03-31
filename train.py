@@ -7,6 +7,7 @@ import time
 from copy import deepcopy
 from pathlib import Path
 from threading import Thread
+from xml.parsers.expat import model
 
 import numpy as np
 import torch.distributed as dist
@@ -84,7 +85,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     if pretrained:
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
-        ckpt = torch.load(weights, map_location=device)  # load checkpoint
+        ckpt = torch.load(weights, map_location=device, weights_only=False)  # load checkpoint
         if hyp.get('anchors'):
             ckpt['model'].yaml['anchors'] = round(hyp['anchors'])  # force autoanchor
         model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc).to(device)  # create
@@ -365,7 +366,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             if ema:
                 ema.update_attr(model, include=['yaml', 'nc', 'hyp', 'gr', 'names', 'stride', 'class_weights'])
             final_epoch = epoch + 1 == epochs
-            if not opt.notest and epoch%20 == 0 and epoch > 30 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
+            if not opt.notest and epoch%8 == 0 and epoch > 40 or  not opt.notest and epoch >  0.8*epochs and epoch%5 == 0 or final_epoch:  # Calculate accuracies
                 results = test.test(opt.data,
                                     batch_size = opt.batch_size,
                                     imgsz=imgsz_test,

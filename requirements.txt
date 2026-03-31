@@ -13,8 +13,8 @@ scipy==1.11.4
 Cython==3.0.6
 scikit-image
 coremltools==5.2.0
-torch==1.9.1 # --extra-index-url https://download.pytorch.org/wh1/cu111
-torchvision==0.10.1 # --extra-index-url https://download.pytorch.org/wh1/cu111
+# torch==1.9.1 # --extra-index-url https://download.pytorch.org/wh1/cu111
+# torchvision==0.10.1 # --extra-index-url https://download.pytorch.org/wh1/cu111
 lion_pytorch==0.1.2
 
 tqdm

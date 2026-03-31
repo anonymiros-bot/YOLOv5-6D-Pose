@@ -31,12 +31,16 @@ def detect(save_img=False):
 
     device = select_device(opt.device)
     half = device.type != 'cpu'  # half precision only supported on CUDA
+    print(f"Using device: {device}, half precision: {half}")
+
 
     # Load model
     model = attempt_load(weights, map_location=device)  # load FP32 model
     torch.save(model.state_dict(), "state_dict_model.pt")
     stride = int(model.stride.max())  # model stride
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
+    print(f"Image size: {imgsz}, Stride: {stride}")
+
     if half:
         model.half()  # to FP16
 
@@ -46,6 +50,9 @@ def detect(save_img=False):
 
         dtx = np.array(cam_intrinsics["distortion"])
         mtx = np.array(cam_intrinsics["intrinsic"])
+        print("Camera Intrinsics:")
+        print("Distortion Coefficients:", dtx)
+        print("Intrinsic Matrix:", mtx)
 
         fx = mtx[0,0]
         fy = mtx[1,1]
@@ -57,6 +64,7 @@ def detect(save_img=False):
 
     save_img = True
     dataset = LoadImages(source, img_size=imgsz, stride=stride)
+    print("Source:", source)
 
     # Get names and colors
     names = model.module.names if hasattr(model, 'module') else model.names
@@ -66,6 +74,10 @@ def detect(save_img=False):
     mesh       = MeshPly(mesh_data)
     vertices   = np.c_[np.array(mesh.vertices), np.ones((len(mesh.vertices), 1))].transpose()
     corners3D  = get_3D_corners(vertices)
+    # Print info about mesh
+    print("Mesh Information:")
+    print("Vertices:", vertices)
+    print("3D Corners:", corners3D)
 
     # edges_corners = [[0, 1], [0, 3], [0, 7], [1, 2], [1, 6], [2, 3], [2, 4], [3, 5], [4, 5], [4, 6], [5, 7], [6, 7]]
     edges_corners = [[0, 1], [0, 2], [0, 4], [1, 3], [1, 5], [2, 3], [2, 6], [3, 7], [4, 5], [4, 6], [5, 7], [6, 7]]
@@ -79,6 +91,13 @@ def detect(save_img=False):
     t0 = time.time()
     count = 0
     for path, img, im0s, intrinsics, shapes in dataset:
+        print(f"Processing {path}")
+        print("Image shape:", img.shape)
+        print("Image original shape:", im0s.shape)
+        print("Image dtype:", img.dtype)
+        print("Intrinsics:", intrinsics)
+        print("shapes:", shapes)
+
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -94,6 +113,8 @@ def detect(save_img=False):
         # Inference
         t1 = time_synchronized()
         pred, train_out = model(img, augment=False)
+        print("Raw model predictions shape:", pred.shape)
+        #print("Raw model predictions:", pred)
         # pred = model(img, augment=False)[0]
 
         # Using confidence threshold, eliminate low-confidence predictions
@@ -103,6 +124,7 @@ def detect(save_img=False):
         # Process detections
         for i, det in enumerate(pred):  # detections per image
             print(det)
+            print("Filtered predictions shape:", det.shape)
             p, s, im0, frame = path, '', im0s, getattr(dataset, 'frame', 0)
 
             p = Path(p)  # to Path
