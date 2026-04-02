@@ -136,14 +136,15 @@ from tqdm import tqdm
 # CONFIGURATION
 # ============================================================================
 
-YOLO_REPO = str(Path.home() / "git/YOLOv5-6D-Pose")
-WEIGHTS = str(Path.home() / "Desktop/YOLOv5-6D-Pose/runs/train/exp6/weights/best.pt")
-#or WEIGHTS = str(Path.home() / "Desktop/YOLOv5-6D-Pose/runs/train/exp40/weights/best.pt")  # --- IGNORE ---
-DATA_DIR = Path.home() / "Desktop/YOLOv5-6D-Pose/data/data/mavic2"
+REPO_ROOT = Path(__file__).resolve().parent
+YOLO_REPO = str(REPO_ROOT)
+WEIGHTS   = str(REPO_ROOT / "runs/train/phantom4/weights/best.pt")
+DATA_DIR  = REPO_ROOT / "data/data/phantom4"
+OUT_DIR   = REPO_ROOT / "estimation_data/real/phantom4"
 
-MODEL_NAME = "mavic2"   # "phantom4" or "mavic2"
-N_IMAGES = None            # per trial, None = all
-DEVICE = "0"             # "cpu", "0" for GPU
+MODEL_NAME = "phantom4"
+N_IMAGES   = None
+DEVICE     = ""
 
 # ============================================================================
 # CONSTANTS
@@ -162,9 +163,10 @@ VICON2CAM_T = np.array([
     [0,           0,           0,            1]
 ], dtype=np.float64)
 
-MIN_X, MAX_X = -0.22503, 0.05875
-MIN_Y, MAX_Y = -0.16151, 0.17152
-MIN_Z, MAX_Z = -0.10000, 0.02000  
+# Phantom 4 3D bounding box corners in MAV body frame
+MIN_X, MAX_X = -0.18, 0.16
+MIN_Y, MAX_Y = -0.16, 0.18
+MIN_Z, MAX_Z = -0.17, 0.06
 
 CORNERS_BODY = np.array([
     [(MIN_X + MAX_X) / 2, (MIN_Y + MAX_Y) / 2, (MIN_Z + MAX_Z) / 2],
@@ -548,9 +550,9 @@ def plot_trial(session, sequence, trial_data, plots_dir):
 def main():
     # Derive output folder name from model + weights
     weights_name = Path(WEIGHTS).parent.parent.name  # e.g. "exp40"
-    out_dir = Path(f"{MODEL_NAME}_{weights_name}")
+    out_dir = OUT_DIR
     plots_dir = out_dir / "plots"
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     plots_dir.mkdir(exist_ok=True)
 
     print("=" * 80)

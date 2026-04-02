@@ -266,4 +266,5 @@ fabric.properties
 
 # dev stuff
 temp/
-runs/
+runs/train_data.tar.gz*
+*.part

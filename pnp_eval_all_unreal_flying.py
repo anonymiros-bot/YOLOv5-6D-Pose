@@ -43,15 +43,13 @@ from tqdm import tqdm
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-
-YOLO_REPO = str(Path.home() / "git/YOLOv5-6D-Pose")
-WEIGHTS = str(Path.home() / "Desktop/YOLOv5-6D-Pose/runs/train/unreal/weights/best.pt")
-
-SEQ_ROOT  = Path.home() / "Desktop/YOLOv5-6D-Pose/data/sequences/flying"
-JSON_ROOT = SEQ_ROOT / "flying"   # flying/flying/{k}/sequence.json
-OUT_DIR   = Path.home() / "Desktop/rl_tracking/examples/deep_eagle/estimation_data/unreal/flying"
-
-DEVICE = ""  # "" = auto (GPU if available), "cpu" for CPU
+REPO_ROOT = Path(__file__).resolve().parent
+YOLO_REPO = str(REPO_ROOT)
+WEIGHTS   = str(REPO_ROOT / "runs/train/unreal/weights/best.pt")
+SEQ_ROOT  = REPO_ROOT / "data/sequences/flying"
+JSON_ROOT = SEQ_ROOT / "flying"
+OUT_DIR   = REPO_ROOT / "estimation_data/unreal/flying"
+DEVICE    = ""
 
 # ============================================================================
 # CAMERA + 3D MODEL (simulated pinhole)

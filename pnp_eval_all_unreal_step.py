@@ -51,14 +51,13 @@ from tqdm import tqdm
 # CONFIGURATION
 # ============================================================================
 
-YOLO_REPO = str(Path.home() / "git/YOLOv5-6D-Pose")
-WEIGHTS = str(Path.home() / "Desktop/YOLOv5-6D-Pose/runs/train/exp9/weights/best.pt")
-
-SEQ_ROOT = Path.home() / "Desktop/YOLOv5-6D-Pose/data/sequences/acc_step"
-JSON_PATH = Path.home() / "Desktop/rl_tracking/examples/deep_eagle/dataset_acc_step.json"
-OUT_DIR = Path.home() / "Desktop/rl_tracking/examples/deep_eagle/estimation_data/unreal/acc_step"
-
-DEVICE = ""  # "" = auto (GPU if available), "cpu" for CPU
+REPO_ROOT = Path(__file__).resolve().parent
+YOLO_REPO = str(REPO_ROOT)
+WEIGHTS   = str(REPO_ROOT / "runs/train/unreal/weights/best.pt")
+SEQ_ROOT  = REPO_ROOT / "data/sequences/acc_step"
+JSON_ROOT = SEQ_ROOT / "acc_step"
+OUT_DIR   = REPO_ROOT / "estimation_data/unreal/acc_step"
+DEVICE    = ""
 
 # ============================================================================
 # CAMERA + 3D MODEL (simulated pinhole)
@@ -188,10 +187,16 @@ def pnp_to_world(T_cam_mav, cam_pos, cam_q_xyzw):
 # ============================================================================
 
 def main():
-    # Load original JSON (read-only)
-    with open(JSON_PATH) as f:
-        dataset = json.load(f)
-    print(f"Loaded {len(dataset)} sequences from {JSON_PATH}")
+    dataset = {}
+    for d in sorted(JSON_ROOT.iterdir(), key=lambda x: int(x.name) if x.name.isdigit() else -1):
+        seq_json = d / "sequence.json"
+        if not seq_json.exists():
+            continue
+        with open(seq_json) as f:
+            jdata = json.load(f)
+        json_key = list(jdata.keys())[0]
+        dataset[json_key] = jdata[json_key]
+    print(f"Loaded {len(dataset)} sequences from {JSON_ROOT}")
 
     # Create output dir
     OUT_DIR.mkdir(parents=True, exist_ok=True)
