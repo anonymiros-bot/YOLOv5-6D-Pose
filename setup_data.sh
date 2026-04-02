@@ -2,7 +2,7 @@
 # setup_data.sh - Downloads and extracts benchmark data into existing data/ directory
 set -e
 
-FILENAME="data.tar.gz"
+FILENAME="data.tar.zst"
 FILE_ID="179BaZZiU6lcHpQI2ritt7IL802FehSvc"
 
 if [ -d "data/sequences" ] && [ -d "data/data/mavic2" ] && [ -d "data/data/phantom4" ]; then
@@ -31,7 +31,7 @@ fi
 
 echo "Extracting into data/..."
 mkdir -p data
-tar -xzf "$FILENAME" --strip-components=1 -C data
+tar --zstd -xf "$FILENAME" --strip-components=1 -C data
 
 echo "Cleaning up..."
 rm "$FILENAME"
